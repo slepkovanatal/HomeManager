@@ -1,5 +1,6 @@
 # from agent_system.registry import agent_registry
-# from services.gsheet_service import append_item_to_sheet
+from services.gsheet_service import append_item_to_sheet
+
 
 # @agent_registry.register("add_item")
 class AddItemAgent:
@@ -11,6 +12,6 @@ class AddItemAgent:
         if not item_name or item_price is None:
             return "Missing item name or price."
 
-        # append_item_to_sheet(item_name, item_price)
+        append_item_to_sheet(item_name, item_price)
 
         return f"✅ Added '{item_name}' (${item_price:.2f}) to the Google Doc."
