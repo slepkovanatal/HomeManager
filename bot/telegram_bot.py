@@ -2,12 +2,9 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 from agents.add_item_agent import AddItemAgent
-# Optional: if you want to use environment variables or config files
-# from agent_system.base import ExecutorAgent
-from config.credentials import TELEGRAM_BOT_TOKEN
+from agents.executor_agent import ExecutorAgent
 
-# Create a global instance of the ExecutorAgent
-# executor = ExecutorAgent()
+from config.credentials import TELEGRAM_BOT_TOKEN
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -23,11 +20,11 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     *item_parts, price = context.args
     item_name = " ".join(item_parts)
 
-    user_input = {"action": "add_item", "item_name": item_name, "item_price": float(price)}
-    response = AddItemAgent.execute(user_input)
+    user_input = {"action": "add_item", "arguments": {"item_name": item_name, "item_price": float(price)}}
+    # response = AddItemAgent.execute(user_input)
 
     # user_input = f"Add food item: {item_name} with price {price}"
-    # response = executor.execute(user_input)
+    response = ExecutorAgent.execute(user_input)
 
     await update.message.reply_text(f"✅ {response}")
 

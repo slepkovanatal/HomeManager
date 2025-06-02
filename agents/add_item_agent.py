@@ -1,8 +1,8 @@
-# from agent_system.registry import agent_registry
+from agents.registry import agent_registry
 from services.gsheet_service import append_item_to_sheet
 
 
-# @agent_registry.register("add_item")
+@agent_registry.register("add_item")
 class AddItemAgent:
     @staticmethod
     def execute(arguments: dict) -> str:

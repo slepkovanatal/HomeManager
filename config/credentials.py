@@ -13,3 +13,5 @@ if TELEGRAM_BOT_TOKEN is None:
 GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "config/credentials.json")
 
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
