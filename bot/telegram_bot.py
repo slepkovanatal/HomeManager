@@ -1,7 +1,6 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-from agents.add_item_agent import AddItemAgent
 from agents.executor_agent import ExecutorAgent
 
 from config.credentials import TELEGRAM_BOT_TOKEN
@@ -20,7 +19,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     *item_parts, price = context.args
     item_name = " ".join(item_parts)
 
-    user_input = {"action": "add_item", "arguments": {"item_name": item_name, "item_price": float(price)}}
+    user_input = {"action": "expire_item", "arguments": {"item_name": item_name, "item_price": float(price)}}
     # response = AddItemAgent.execute(user_input)
 
     # user_input = f"Add food item: {item_name} with price {price}"

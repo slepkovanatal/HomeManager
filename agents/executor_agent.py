@@ -23,12 +23,14 @@ class ExecutorAgent:
 
     @staticmethod
     def decide_action(user_input: dict) -> str:
-        actions = agent_registry.list_agents().keys()
-        function_list = "\n".join(f"- {name}" for name in actions)
+        actions = agent_registry.list_agents()
+        function_list = "\n".join(
+            f"- {name}: {info.description}" for name, info in actions.items()
+        )
 
         prompt = f"""
 You are a smart router for a Telegram bot that manages groceries and food items.
-You are given a user message and must decide which function to use.
+You are given a user message and must decide which function from available functions to use.
 
 Available functions:
 {function_list}
@@ -36,7 +38,8 @@ Available functions:
 User message:
 \"\"\"{user_input["action"]}\"\"\"
 
-Which one of the functions should be used? Just reply with the function name (e.g., add_item).
+Which one of the functions should be used? Just reply with the function name or 
+with "none" if you can't find appropriate function.
 """
 
         response = client.chat.completions.create(
