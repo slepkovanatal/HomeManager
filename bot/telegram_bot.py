@@ -1,5 +1,7 @@
+import os
+
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 from agents.executor_agent import ExecutorAgent
 
@@ -27,10 +29,36 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"✅ {response}")
 
+# === Handle Received Photo ===
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    # Get photo file ID (the highest resolution version)
+    photo_file_id = update.message.photo[-1].file_id
+
+    tmp_folder = 'tmp'
+    if not os.path.exists(tmp_folder):
+        os.makedirs(tmp_folder)
+
+    product_file_path = os.path.join(tmp_folder, 'product_photo.jpg')
+
+    # Download the photo immediately
+    product_photo_file = await context.bot.get_file(photo_file_id)
+    await product_photo_file.download_to_drive(product_file_path)
+
+    # Save photo ID in user's session
+    context.user_data['photo_file_path'] = product_file_path
+
+    await context.bot.send_message(chat_id=chat_id, text="Image received!")
+
+    # # Show options
+    # await send_buttons(update, context)
+
 # Register all handlers
 def register_handlers(application):
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("add", add))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
 # Run the bot
 def run_bot():
