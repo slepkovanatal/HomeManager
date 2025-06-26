@@ -1,14 +1,10 @@
 import logging
 import openai
 
+from services.openai_client import client
 from agents.registry import agent_registry
 
-from config.credentials import OPENAI_API_KEY
-
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
 class ExecutorAgent:
-
     @staticmethod
     def execute(user_input: dict) -> str:
         action_name = ExecutorAgent.decide_action(user_input)

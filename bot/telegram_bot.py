@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 from agents.executor_agent import ExecutorAgent
+from agents.product_info_collector import ProductInfoCollector
 
 from config.credentials import TELEGRAM_BOT_TOKEN
 
@@ -49,7 +50,14 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Save photo ID in user's session
     context.user_data['photo_file_path'] = product_file_path
 
-    await context.bot.send_message(chat_id=chat_id, text="Image received!")
+    suitable_products = ProductInfoCollector().execute()
+    text = ""
+    for i, url in enumerate(suitable_products):
+        text += url
+        if i < len(suitable_products) - 1:
+            text += "\n"
+
+    await context.bot.send_message(chat_id=chat_id, text=f"Image received!\n{text}")
 
     # # Show options
     # await send_buttons(update, context)
