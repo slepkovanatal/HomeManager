@@ -1,5 +1,8 @@
 import requests
 import json
+import re
+
+from functools import singledispatch
 
 HEADERS = {
     'x-application': 'AHWEBSHOP',
@@ -29,19 +32,54 @@ def search_products(query=None, page=0, size=50, sort='RELEVANCE') -> json:
         response.raise_for_status()
     return response.json()
 
-def extract_largest_images(data):
+def fetch_product_data(url: str):
+    if not url.startswith("https://www.ah.nl"):
+        return None
+
+    product_id = fetch_product_id(url)
+
+    response = requests.get(f'https://api.ah.nl/mobile-services/product/detail/v4/fir/{product_id}',
+                            headers={**HEADERS, "Authorization": "Bearer {}".format(_access_token.get('access_token'))})
+    if not response.ok:
+        response.raise_for_status()
+    return response.json()
+
+def extract_largest_image(product):
+    images = product['images']
+    largest_image = max(images, key=lambda img: img['width'])
+    return {
+        'productId': product['webshopId'],
+        'productUrl': get_product_url(product['webshopId']),
+        'imageUrl': largest_image['url']
+    }
+
+@singledispatch
+def extract_largest_images(arg):
+    raise NotImplementedError(f"Unsupported type: {type(arg)}")
+
+@extract_largest_images.register
+def _(query: str):
+    data = search_products(query)
+
     largest_images = []
     for product in data['products']:
-        images = product['images']
-        largest_image = max(images, key=lambda img: img['width'])
-        largest_images.append({
-            'productId': product['webshopId'],
-            'productUrl': get_product_url(product['webshopId']),
-            'imageUrl': largest_image['url'],
-            'imageWidth': largest_image['width'],
-            'imageHeight': largest_image['height']
-        })
+        largest_images.append(extract_largest_image(product))
+    return largest_images
+
+@extract_largest_images.register
+def _(product_urls: list):
+    largest_images = []
+    for url in product_urls:
+        product = fetch_product_data(url)
+        if product is not None:
+            largest_images.append(extract_largest_image(product))
     return largest_images
 
 def get_product_url(product_id) -> str:
     return f'https://www.ah.nl/producten/product/wi{product_id}'
+
+def fetch_product_id(url: str) -> str | None:
+    match = re.search(r'wi(\d{6})', url)
+    if match:
+        return match.group(1)
+    return None
