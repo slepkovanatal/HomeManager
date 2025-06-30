@@ -50,6 +50,7 @@ def extract_product_data(product):
     return {
         'productId': product['webshopId'],
         'productUrl': get_product_url(product['webshopId']),
+        'productTitle': product['title'],
         'price': product["priceBeforeBonus"],
         'imageUrl': largest_image['url']
     }

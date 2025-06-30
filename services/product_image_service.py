@@ -40,5 +40,5 @@ class ProductImageService:
             img = Image.open(BytesIO(resp.content)).convert('RGB')
             sim = self.calculate_similarity(img)
             print(image_info['productUrl'], ' ', sim)
-            candidates.append((image_info['productUrl'], sim))
+            candidates.append((image_info, sim))
         return candidates

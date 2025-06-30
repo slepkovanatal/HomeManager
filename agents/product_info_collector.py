@@ -117,24 +117,24 @@ class ProductInfoCollector:
 
     def search_products(self) -> list[(str, float)]:
         keywords = self.extract_keywords()
-        products_info = self.get_all_relevant_products_via_ah_api(keywords)
-        if len(products_info) == 0:
+        products_data = self.get_all_relevant_products_via_ah_api(keywords)
+        if len(products_data) == 0:
             keywords = self.extract_keywords()
-            products_info = self.get_all_relevant_products_via_ah_api(keywords)
+            products_data = self.get_all_relevant_products_via_ah_api(keywords)
 
-        if len(products_info) == 0:
-            products_info = self.get_all_relevant_products_via_ai(keywords)
-            if len(products_info) == 0:
-                products_info = self.get_all_relevant_products_via_ai(keywords)
+        if len(products_data) == 0:
+            products_data = self.get_all_relevant_products_via_ai(keywords)
+            if len(products_data) == 0:
+                products_data = self.get_all_relevant_products_via_ai(keywords)
 
-            if 0 < len(products_info):
-                max_suitability = max(products_info, key=lambda x: x[1])
+            if 0 < len(products_data):
+                max_suitability = max(products_data, key=lambda x: x[1])
                 if max_suitability < self.THRESHOLD:
                     keywords = self.extract_keywords()
-                    products_info = self.get_all_relevant_products_via_ai(keywords)
-        return products_info
+                    products_data = self.get_all_relevant_products_via_ai(keywords)
+        return products_data
 
-    def execute(self) -> list[str]:
+    def execute(self) -> list[dict]:
         products = self.search_products()
 
         suitable_products = []

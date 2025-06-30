@@ -14,4 +14,4 @@ class ExpireItemAgent:
 
         append_item_to_sheet(item_name, item_price)
 
-        return f"✅ Added expired item '{item_name}' (${item_price:.2f}) to the Google Sheets."
+        return f"✅ Added expired item '{item_name}' (€{item_price:.2f}) to the Google Sheets."
