@@ -2,7 +2,7 @@ import os
 
 from pydantic import BaseModel
 
-from providers.ah_config import get_anonymous_access_token, search_products, extract_largest_images
+from providers.ah_config import get_anonymous_access_token, extract_products_data
 from services.openai_client import client, create_file
 from services.product_image_service import ProductImageService
 
@@ -80,8 +80,8 @@ class ProductInfoCollector:
     def get_all_relevant_products_via_ah_api(self, keywords: list[str]):
         query = self.keywords_to_query(keywords)
 
-        candidates_info = extract_largest_images(query)
-        candidates = self.product_image_service.get_candidates_similarity(candidates_info)
+        candidates_data = extract_products_data(query)
+        candidates = self.product_image_service.get_candidates_similarity(candidates_data)
         return candidates
 
     def get_all_relevant_products_via_ai(self, keywords: list[str]):
@@ -110,8 +110,8 @@ class ProductInfoCollector:
                 for annotation in out.content[0].annotations:
                     product_urls.append(annotation.url)
 
-        candidates_info = extract_largest_images(product_urls)
-        candidates = self.product_image_service.get_candidates_similarity(candidates_info)
+        candidates_data = extract_products_data(product_urls)
+        candidates = self.product_image_service.get_candidates_similarity(candidates_data)
 
         return candidates
 

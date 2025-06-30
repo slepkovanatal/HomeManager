@@ -44,36 +44,37 @@ def fetch_product_data(url: str):
         response.raise_for_status()
     return response.json()
 
-def extract_largest_image(product):
+def extract_product_data(product):
     images = product['images']
     largest_image = max(images, key=lambda img: img['width'])
     return {
         'productId': product['webshopId'],
         'productUrl': get_product_url(product['webshopId']),
+        'price': product["priceBeforeBonus"],
         'imageUrl': largest_image['url']
     }
 
 @singledispatch
-def extract_largest_images(arg):
+def extract_products_data(arg):
     raise NotImplementedError(f"Unsupported type: {type(arg)}")
 
-@extract_largest_images.register
+@extract_products_data.register
 def _(query: str):
     data = search_products(query)
 
-    largest_images = []
+    products_data = []
     for product in data['products']:
-        largest_images.append(extract_largest_image(product))
-    return largest_images
+        products_data.append(extract_product_data(product))
+    return products_data
 
-@extract_largest_images.register
+@extract_products_data.register
 def _(product_urls: list):
-    largest_images = []
+    product_datas = []
     for url in product_urls:
         product = fetch_product_data(url)
         if product is not None:
-            largest_images.append(extract_largest_image(product))
-    return largest_images
+            product_datas.append(extract_product_data(product))
+    return product_datas
 
 def get_product_url(product_id) -> str:
     return f'https://www.ah.nl/producten/product/wi{product_id}'
