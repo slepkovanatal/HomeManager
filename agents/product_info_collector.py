@@ -116,20 +116,25 @@ class ProductInfoCollector:
         return candidates
 
     def search_products(self) -> list[(str, float)]:
+        def validate_products_data(products_data) -> bool:
+            if 0 < len(products_data) and self.THRESHOLD < max(products_data, key=lambda x: x[1])[1]:
+                return True
+            return False
+
         keywords = self.extract_keywords()
         products_data = self.get_all_relevant_products_via_ah_api(keywords)
-        if len(products_data) == 0:
+        if not validate_products_data(products_data):
             keywords = self.extract_keywords()
             products_data = self.get_all_relevant_products_via_ah_api(keywords)
 
-        if len(products_data) == 0:
+        if not validate_products_data(products_data):
             products_data = self.get_all_relevant_products_via_ai(keywords)
             if len(products_data) == 0:
                 products_data = self.get_all_relevant_products_via_ai(keywords)
 
             if 0 < len(products_data):
                 max_suitability = max(products_data, key=lambda x: x[1])
-                if max_suitability < self.THRESHOLD:
+                if max_suitability[1] < self.THRESHOLD:
                     keywords = self.extract_keywords()
                     products_data = self.get_all_relevant_products_via_ai(keywords)
         return products_data
