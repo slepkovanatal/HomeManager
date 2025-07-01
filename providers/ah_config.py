@@ -45,6 +45,8 @@ def fetch_product_data(url: str):
     return response.json()
 
 def extract_product_data(product):
+    if 'productCard' in product:
+        product = product['productCard']
     images = product['images']
     largest_image = max(images, key=lambda img: img['width'])
     return {
