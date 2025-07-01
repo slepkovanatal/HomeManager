@@ -104,13 +104,13 @@ class ProductInfoCollector:
                                        }]
                                        )
 
-        product_urls = list()
+        product_urls = set()
         for out in resp.output:
             if out.type == "message":
                 for annotation in out.content[0].annotations:
-                    product_urls.append(annotation.url)
+                    product_urls.add(annotation.url)
 
-        candidates_data = extract_products_data(product_urls)
+        candidates_data = extract_products_data(list(product_urls))
         candidates = self.product_image_service.get_candidates_similarity(candidates_data)
 
         return candidates

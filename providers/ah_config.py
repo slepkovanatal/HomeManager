@@ -38,11 +38,14 @@ def fetch_product_data(url: str):
 
     product_id = fetch_product_id(url)
 
-    response = requests.get(f'https://api.ah.nl/mobile-services/product/detail/v4/fir/{product_id}',
-                            headers={**HEADERS, "Authorization": "Bearer {}".format(_access_token.get('access_token'))})
-    if not response.ok:
-        response.raise_for_status()
-    return response.json()
+    if product_id is not None:
+        response = requests.get(f'https://api.ah.nl/mobile-services/product/detail/v4/fir/{product_id}',
+                                headers={**HEADERS, "Authorization": "Bearer {}".format(_access_token.get('access_token'))})
+        if not response.ok:
+            response.raise_for_status()
+        return response.json()
+
+    return None
 
 def extract_product_data(product):
     if 'productCard' in product:
@@ -74,6 +77,7 @@ def _(query: str):
 def _(product_urls: list):
     product_datas = []
     for url in product_urls:
+        print(url)
         product = fetch_product_data(url)
         if product is not None:
             product_datas.append(extract_product_data(product))

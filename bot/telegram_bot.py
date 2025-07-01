@@ -52,12 +52,18 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Save photo ID in user's session
     context.user_data['photo_file_path'] = product_file_path
 
-    suitable_products = ProductInfoCollector().execute()
-    context.user_data['product_list'] = suitable_products
-    await send_product_options(update, suitable_products)
+    await process_suitable_products(update, context)
+    if 'product_list' not in context.user_data:
+        await send_no_options(update)
 
     # # Show options
     # await send_buttons(update, context)
+
+async def process_suitable_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    suitable_products = ProductInfoCollector().execute()
+    if 0 < len(suitable_products):
+        context.user_data['product_list'] = suitable_products
+        await send_product_options(update, suitable_products)
 
 async def send_product_options(update: Update, product_list: list[dict]):
     keyboard = []
@@ -74,6 +80,15 @@ async def send_product_options(update: Update, product_list: list[dict]):
 
     message_text = 'Please review the products using the links and then select the best match:'
 
+    await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
+async def send_no_options(update: Update):
+    message_text = 'No matching products found'
+
+    retry_button = InlineKeyboardButton("🔄 Try again", callback_data="try_again")
+    keyboard = [[retry_button]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -112,6 +127,16 @@ async def handle_expiration_finishing(update: Update, context: ContextTypes.DEFA
 
         await query.edit_message_text(text=text)
 
+async def handle_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    selected_option = query.data
+    if selected_option == "try_again":
+        await process_suitable_products(update, context)
+        if 'product_list' not in context.user_data:
+            await query.edit_message_text(text='❌ No matching products found again')
+
 # Register all handlers
 def register_handlers(application):
     application.add_handler(CommandHandler("start", start))
@@ -119,6 +144,7 @@ def register_handlers(application):
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     application.add_handler(CallbackQueryHandler(handle_product_selection, pattern='^product_select_'))
     application.add_handler(CallbackQueryHandler(handle_expiration_finishing, pattern='^(expired|finished)$'))
+    application.add_handler(CallbackQueryHandler(handle_retry, pattern='^try_again$'))
 
 # Run the bot
 def run_bot():
