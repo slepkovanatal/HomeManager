@@ -1,14 +1,29 @@
 import os
+import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import TypeHandler, ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 
 from agents.executor_agent import ExecutorAgent
 from agents.expire_item_agent import ExpireItemAgent
 from agents.product_info_collector import ProductInfoCollector
 
 from config.credentials import TELEGRAM_BOT_TOKEN
+
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+# set higher logging level for httpx to avoid all GET and POST requests being logged
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a telegram message to notify the developer."""
+    # Log the error before we do anything else, so we can see it even if something breaks.
+    logger.error("Exception while handling an update:", exc_info=context.error)
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,6 +160,8 @@ def register_handlers(application):
     application.add_handler(CallbackQueryHandler(handle_product_selection, pattern='^product_select_'))
     application.add_handler(CallbackQueryHandler(handle_expiration_finishing, pattern='^(expired|finished)$'))
     application.add_handler(CallbackQueryHandler(handle_retry, pattern='^try_again$'))
+
+    application.add_error_handler(error_handler)
 
 # Run the bot
 def run_bot():
