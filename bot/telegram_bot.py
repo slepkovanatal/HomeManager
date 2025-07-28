@@ -67,18 +67,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Save photo ID in user's session
     context.user_data['photo_file_path'] = product_file_path
 
-    await process_suitable_products(update, context)
-    if 'product_list' not in context.user_data:
+    result = await process_suitable_products(update, context)
+    if not result:
         await send_no_options(update)
 
     # # Show options
     # await send_buttons(update, context)
 
-async def process_suitable_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def process_suitable_products(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     suitable_products = ProductInfoCollector().execute()
     if 0 < len(suitable_products):
         context.user_data['product_list'] = suitable_products
         await send_product_options(update, suitable_products)
+        return True
+    return False
 
 async def send_product_options(update: Update, product_list: list[dict]):
     keyboard = []
