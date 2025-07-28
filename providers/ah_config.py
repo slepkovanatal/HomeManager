@@ -20,9 +20,9 @@ def get_anonymous_access_token():
         response.raise_for_status()
     return response.json()
 
-_access_token = get_anonymous_access_token()
-
 def search_products(query=None, page=0, size=50, sort='RELEVANCE') -> json:
+    _access_token = get_anonymous_access_token()
+
     response = requests.get(
         'https://api.ah.nl/mobile-services/product/search/v2?sortOn=RELEVANCE',
         params={"sortOn": sort, "page": page, "size": size, "query": query},
@@ -35,6 +35,8 @@ def search_products(query=None, page=0, size=50, sort='RELEVANCE') -> json:
 def fetch_product_data(url: str):
     if not url.startswith("https://www.ah.nl"):
         return None
+
+    _access_token = get_anonymous_access_token()
 
     product_id = fetch_product_id(url)
 

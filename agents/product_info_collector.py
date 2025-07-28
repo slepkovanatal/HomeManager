@@ -12,8 +12,6 @@ class ProductInfoCollector:
     MAX_DIFFERENCE = 0.02
 
     def __init__(self):
-        self._ah_access_token = get_anonymous_access_token()
-
         self.product_file_path = os.path.join('tmp', 'product_photo.jpg')
         self.product_image_service = ProductImageService(self.product_file_path)
 
