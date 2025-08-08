@@ -12,7 +12,7 @@ class ProductInfoCollector:
     MAX_DIFFERENCE = 0.02
 
     def __init__(self):
-        self.product_file_path = os.path.join('tmp', 'product_photo.jpg')
+        self.product_file_path = os.path.join('/app/tmp', 'product_photo.jpg')
         self.product_image_service = ProductImageService(self.product_file_path)
 
     def extract_keywords(self) -> list[str]:
@@ -137,7 +137,7 @@ class ProductInfoCollector:
                     products_data = self.get_all_relevant_products_via_ai(keywords)
         return products_data
 
-    def execute(self) -> list[dict]:
+    def execute(self) -> list[str]:
         products = self.search_products()
 
         suitable_products = []

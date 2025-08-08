@@ -1,0 +1,46 @@
+version: '3.9'
+services:
+  redis:
+    image: redis
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    working_dir: /app/api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - shared_tmp:/app/tmp
+    working_dir: /app/api
+    environment:
+      - PYTHONPATH=/app
+    command: celery -A tasks worker --loglevel=info
+    depends_on:
+      - redis
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - shared_tmp:/app/tmp
+    working_dir: /app/bot
+    environment:
+      - PYTHONPATH=/app
+    command: python -u main.py
+    depends_on:
+      - api
+
+volumes:
+  shared_tmp:

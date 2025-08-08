@@ -1,5 +1,6 @@
 import os
 import logging
+import aiohttp
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -19,6 +20,8 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+
+FASTAPI_URL = "http://api:8000"
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log the error and send a telegram message to notify the developer."""
@@ -54,7 +57,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get photo file ID (the highest resolution version)
     photo_file_id = update.message.photo[-1].file_id
 
-    tmp_folder = 'tmp'
+    tmp_folder = '/app/tmp'
     if not os.path.exists(tmp_folder):
         os.makedirs(tmp_folder)
 
@@ -75,11 +78,22 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # await send_buttons(update, context)
 
 async def process_suitable_products(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    suitable_products = ProductInfoCollector().execute()
-    if 0 < len(suitable_products):
-        context.user_data['product_list'] = suitable_products
-        await send_product_options(update, suitable_products)
-        return True
+    chat_id = update.effective_chat.id
+    print(chat_id)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{FASTAPI_URL}/process-products/", json={"user_id": chat_id}) as resp:
+            print(resp)
+            data = await resp.json()
+            # print(data)
+            task_id = data["task_id"]
+
+    await update.message.reply_text("⏳ Processing product data, please wait...")
+    # suitable_products = ProductInfoCollector().execute()
+    # if 0 < len(suitable_products):
+    #     context.user_data['product_list'] = suitable_products
+    #     await send_product_options(update, suitable_products)
+    #     return True
     return False
 
 async def send_product_options(update: Update, product_list: list[dict]):

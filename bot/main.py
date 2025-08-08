@@ -1,4 +1,4 @@
-from bot.telegram_bot import run_bot
+from telegram_bot import run_bot
 
 from agents.loader import load_all_agents
 
