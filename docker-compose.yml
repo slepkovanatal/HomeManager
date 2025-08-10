@@ -38,7 +38,7 @@ services:
     working_dir: /app/bot
     environment:
       - PYTHONPATH=/app
-    command: python -u main.py
+    command: uvicorn telegram_bot:app --host 0.0.0.0 --port 8080
     depends_on:
       - api
 

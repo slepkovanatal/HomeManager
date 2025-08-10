@@ -1,10 +1,13 @@
 import os
 import logging
 import aiohttp
+import asyncio
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.constants import ParseMode
-from telegram.ext import TypeHandler, ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
 
 from agents.executor_agent import ExecutorAgent
 from agents.expire_item_agent import ExpireItemAgent
@@ -22,6 +25,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 FASTAPI_URL = "http://api:8000"
+
+bot = Bot(TELEGRAM_BOT_TOKEN)
+
+telegram_app: Application | None = None
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log the error and send a telegram message to notify the developer."""
@@ -96,7 +103,7 @@ async def process_suitable_products(update: Update, context: ContextTypes.DEFAUL
     #     return True
     return False
 
-async def send_product_options(update: Update, product_list: list[dict]):
+async def send_product_options(update: Update, product_list: list[str]):
     keyboard = []
 
     for idx, product_data in enumerate(product_list, 1):
@@ -180,8 +187,32 @@ def register_handlers(application):
     application.add_error_handler(error_handler)
 
 # Run the bot
-def run_bot():
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    register_handlers(app)
+async def run_bot():
+    global telegram_app
+    telegram_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    register_handlers(telegram_app)
     print("🤖 Bot is running...")
-    app.run_polling()
+    await telegram_app.initialize()
+    await telegram_app.start()
+    await telegram_app.updater.start_polling()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(run_bot())
+    yield
+    global telegram_app
+    if telegram_app:
+        await telegram_app.updater.stop()
+        await telegram_app.stop()
+        await telegram_app.shutdown()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.post("/task-callback")
+async def task_callback(request: Request):
+    data = await request.json()
+    chat_id = data["chat_id"]
+    result = data["result"]
+
+    await bot.send_message(chat_id=chat_id, text=f'Product is found {result}')
+    return {'status': 'sent'}
