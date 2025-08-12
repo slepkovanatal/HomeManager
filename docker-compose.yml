@@ -10,6 +10,9 @@ services:
     volumes:
       - .:/app
     working_dir: /app/api
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     depends_on:
       - redis
@@ -24,6 +27,8 @@ services:
     working_dir: /app/api
     environment:
       - PYTHONPATH=/app
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
     command: celery -A tasks worker --loglevel=info
     depends_on:
       - redis
@@ -38,6 +43,7 @@ services:
     working_dir: /app/bot
     environment:
       - PYTHONPATH=/app
+      - REDIS_URL_BOT=redis://redis:6379/3
     command: uvicorn telegram_bot:app --host 0.0.0.0 --port 8080
     depends_on:
       - api

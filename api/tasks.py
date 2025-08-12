@@ -1,9 +1,13 @@
 import json
+import os
+
 import requests
 
 from celery import Celery
 
-app = Celery("tasks", broker="redis://redis:6379/0", backend="redis://redis:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+app = Celery("tasks", broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
 @app.task
 def process_suitable_products_task(user_id):

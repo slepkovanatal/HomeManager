@@ -3,6 +3,7 @@ import logging
 import aiohttp
 import asyncio
 
+from celery.backends.base import pending_results_t
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.constants import ParseMode
 from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
@@ -12,6 +13,7 @@ from contextlib import asynccontextmanager
 from agents.executor_agent import ExecutorAgent
 from agents.expire_item_agent import ExpireItemAgent
 from agents.product_info_collector import ProductInfoCollector
+from bot.state_store import set_user_state, get_user_state
 
 from config.credentials import TELEGRAM_BOT_TOKEN
 
@@ -37,7 +39,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Hi! Send /add <item name> <price> to add a food item.")
+    msg = await update.message.reply_text("👋 Hi! Send /add <item name> <price> to add a food item.")
+    set_user_state(update.effective_chat.id, last_message_id=msg.message_id)
 
 # /add command (e.g. /add Pizza 12.5)
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -55,7 +58,8 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # user_input = f"Add food item: {item_name} with price {price}"
     response = ExecutorAgent.execute(user_input)
 
-    await update.message.reply_text(f"✅ {response}")
+    msg = await update.message.reply_text(f"✅ {response}")
+    set_user_state(update.effective_chat.id, last_message_id=msg.message_id)
 
 # === Handle Received Photo ===
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,12 +81,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Save photo ID in user's session
     context.user_data['photo_file_path'] = product_file_path
 
-    result = await process_suitable_products(update, context)
-    if not result:
-        await send_no_options(update)
-
-    # # Show options
-    # await send_buttons(update, context)
+    await process_suitable_products(update, context)
 
 async def process_suitable_products(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     chat_id = update.effective_chat.id
@@ -95,30 +94,13 @@ async def process_suitable_products(update: Update, context: ContextTypes.DEFAUL
             # print(data)
             task_id = data["task_id"]
 
-    await update.message.reply_text("⏳ Processing product data, please wait...")
-    # suitable_products = ProductInfoCollector().execute()
-    # if 0 < len(suitable_products):
-    #     context.user_data['product_list'] = suitable_products
-    #     await send_product_options(update, suitable_products)
-    #     return True
-    return False
+    msg = await update.message.reply_text("⏳ Processing product data, please wait...")
 
-async def send_product_options(update: Update, product_list: list[str]):
-    keyboard = []
+    set_user_state(chat_id, processing_message_id = msg.message_id)
+    set_user_state(chat_id, last_message_id=msg.message_id)
+    set_user_state(chat_id, pending_task_id=task_id)
 
-    for idx, product_data in enumerate(product_list, 1):
-        # Each row has two buttons: open link and select product
-        row = [
-            InlineKeyboardButton("🌐 Open Link", url=product_data["productUrl"]),  # Opens the product page
-            InlineKeyboardButton(f"✅ Select Product {idx}", callback_data=f'product_select_{idx}')  # Tracks selection
-        ]
-        keyboard.append(row)
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    message_text = 'Please review the products using the links and then select the best match:'
-
-    await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    return True
 
 async def send_no_options(update: Update):
     message_text = 'No matching products found'
@@ -127,7 +109,8 @@ async def send_no_options(update: Update):
     keyboard = [[retry_button]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    msg = await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    set_user_state(update.effective_chat.id, msg.message_id)
 
 async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -139,8 +122,13 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
     product_index = int(selected_option.split('_')[2]) - 1
 
     # Retrieve product info (you should store it in user context/session)
-    selected_product = context.user_data['product_list'][product_index]
-    context.user_data["selected_product"] = selected_product
+
+    chat_id = update.effective_chat.id
+    state = get_user_state(chat_id, "product_list")
+    product_list = state.get("product_list")
+
+    selected_product = product_list[product_index]
+    set_user_state(chat_id, selected_product=selected_product)
 
     expired_button = InlineKeyboardButton("🗑️ Expired", callback_data="expired")
     finished_button = InlineKeyboardButton("✅ Finished", callback_data="finished")
@@ -149,21 +137,28 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
+    set_user_state(chat_id, last_message_id=query.message.id)
+    msg = await query.edit_message_text(
         text=f'You selected:\n{selected_product["productUrl"]}\n', reply_markup=reply_markup)
+    set_user_state(update.effective_chat.id, last_message_id=msg.message_id)
 
 async def handle_expiration_finishing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    chat_id = update.effective_chat.id
+    state = get_user_state(chat_id, "selected_product")
+    selected_product = state["selected_product"]
+
     selected_option = query.data
     if selected_option == "expired":
         text = ExpireItemAgent.execute({
-            "item_name": context.user_data["selected_product"]["productTitle"],
-            "item_price": context.user_data["selected_product"]["price"]
+            "item_name": selected_product["productTitle"],
+            "item_price": selected_product["price"]
         })
 
-        await query.edit_message_text(text=text)
+        msg = await query.edit_message_text(text=text)
+        set_user_state(chat_id, last_message_id=msg.message_id)
 
 async def handle_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -173,7 +168,8 @@ async def handle_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if selected_option == "try_again":
         await process_suitable_products(update, context)
         if 'product_list' not in context.user_data:
-            await query.edit_message_text(text='❌ No matching products found again')
+            msg = await query.edit_message_text(text='❌ No matching products found again')
+            set_user_state(update.effective_chat.id, last_message_id=msg.message_id)
 
 # Register all handlers
 def register_handlers(application):
@@ -214,5 +210,40 @@ async def task_callback(request: Request):
     chat_id = data["chat_id"]
     result = data["result"]
 
-    await bot.send_message(chat_id=chat_id, text=f'Product is found {result}')
+    set_user_state(chat_id, product_list=result)
+    keyboard = []
+
+    for idx, product_data in enumerate(result, 1):
+        # Each row has two buttons: open link and select product
+        row = [
+            InlineKeyboardButton("🌐 Open Link", url=product_data["productUrl"]),  # Opens the product page
+            InlineKeyboardButton(f"✅ Select Product {idx}", callback_data=f'product_select_{idx}')  # Tracks selection
+        ]
+        keyboard.append(row)
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    message_text = 'Please review the products using the links and then select the best match:'
+
+    state = get_user_state(chat_id, "processing_message_id")
+    processing_message_id = state.get("processing_message_id")
+
+    state = get_user_state(chat_id, "last_message_id")
+    last_message_id = state["last_message_id"]
+
+    if processing_message_id == last_message_id:
+        try:
+            msg = await bot.edit_message_text(text=message_text, chat_id=chat_id, message_id=processing_message_id,
+                                              reply_markup=reply_markup,
+                                              parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            msg = await bot.send_message(text=message_text, chat_id=chat_id, reply_markup=reply_markup,
+                                         parse_mode=ParseMode.MARKDOWN)
+    else:
+        msg = await bot.send_message(text=message_text, chat_id=chat_id, reply_markup=reply_markup,
+                                     parse_mode=ParseMode.MARKDOWN)
+
+    set_user_state(chat_id, pending_task_id=None)
+    set_user_state(chat_id, last_message_id=msg.message_id)
+
     return {'status': 'sent'}
